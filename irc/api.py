@@ -1,7 +1,6 @@
 from .session import Session
 
 def session(**kwargs):
-    session = Session()
-    session.connect(**kwargs)
+    session = Session(**kwargs)
     return session
 
