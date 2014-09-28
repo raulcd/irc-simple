@@ -1,4 +1,8 @@
-import asyncio
+try:
+    import asyncio
+except ImportError:
+    import trollius as asyncio
+
 import logging
 
 log = logging.getLogger(__name__)
@@ -11,7 +15,7 @@ messages = {
         'away': 'AWAY',
         'list': 'LIST',
         'pong': 'PONG',
-        }
+}
 
 class IRCConnectionProtocol(asyncio.Protocol):
 
@@ -20,11 +24,11 @@ class IRCConnectionProtocol(asyncio.Protocol):
         self._password = password
 
     def connection_made(self, transport):
+        self.transport = transport
         transport.write(self._generate_message('password', self._password))
         asyncio.wait(transport.write(self._generate_message('nickname', self._user)))
-        my_intern_message = " ".join([self._user, '0 * :raulcd'])
+        my_intern_message = " ".join([self._user, '0 * :purple'])
         asyncio.wait(transport.write(self._generate_message('username', my_intern_message)))
-        self.transport = transport
 
     def data_received(self, data):
         message_received = data.decode()
@@ -42,7 +46,7 @@ class IRCConnectionProtocol(asyncio.Protocol):
         self.transport.write(self._generate_message('join_channel', channel))
 
     def _generate_message(self, message_type, message):
-        return bytes(" ".join([messages[message_type], message, "\n"]), 'UTF-8')
+        return " ".join([messages[message_type], message, "\n"]).encode('UTF-8')
 
 class Session(object):
 
@@ -56,6 +60,10 @@ class Session(object):
         coro = self.irc_connection.join_channel(channel)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(coro)
+        loop.run_forever()
+
+    def run_forever(self):
+        loop = asyncio.get_event_loop()
         loop.run_forever()
 
     def close(self):
