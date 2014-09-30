@@ -15,6 +15,7 @@ messages = {
         'away': 'AWAY',
         'list': 'LIST',
         'pong': 'PONG',
+        'message': 'PRIVMSG',
 }
 
 class IRCConnectionProtocol(asyncio.Protocol):
@@ -22,6 +23,7 @@ class IRCConnectionProtocol(asyncio.Protocol):
     def __init__(self, user, password):
         self._user = user
         self._password = password
+        self.channel_callbacks = {}
 
     def connection_made(self, transport):
         self.transport = transport
@@ -35,15 +37,19 @@ class IRCConnectionProtocol(asyncio.Protocol):
         print('data received: {}'.format(message_received))
         if message_received.count('PING'):
             self.transport.write(self._generate_message('pong', ''))
-
+        elif message_received.count('PRIVMSG'):
+            callback_functions = [callback for channel, callback in self.channel_callbacks.items() if message_received.count(channel)]
+            for callback in callback_functions:
+                callback(data)
 
     def connection_lost(self, exc):
         print('server closed the connection')
         asyncio.get_event_loop().stop()
 
     @asyncio.coroutine
-    def join_channel(self, channel):
+    def join_channel(self, channel, on_message_received):
         self.transport.write(self._generate_message('join_channel', channel))
+        self.channel_callbacks[channel] = on_message_received
 
     def _generate_message(self, message_type, message):
         return " ".join([messages[message_type], message, "\n"]).encode('UTF-8')
@@ -56,8 +62,8 @@ class Session(object):
         coro = loop.create_connection(lambda: self.irc_connection, host, 6667)
         loop.run_until_complete(coro)
         
-    def join(self, channel):
-        coro = self.irc_connection.join_channel(channel)
+    def join(self, channel, on_message_received):
+        coro = self.irc_connection.join_channel(channel, on_message_received)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(coro)
         loop.run_forever()
