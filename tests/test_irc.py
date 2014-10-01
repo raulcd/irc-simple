@@ -1,5 +1,6 @@
 import irc
 
+
 def test_connection():
     irc.session(host='irc.freenode.net', user='telo', password='password')
 
