@@ -3,20 +3,17 @@ try:
 except ImportError:
     import trollius as asyncio
 
-import logging
 
-log = logging.getLogger(__name__)
+messages = {'password': 'PASS',
+            'nickname': 'NICK',
+            'username': 'USER',
+            'join_channel': 'JOIN',
+            'away': 'AWAY',
+            'list': 'LIST',
+            'pong': 'PONG',
+            'message': 'PRIVMSG',
+            }
 
-messages = {
-        'password': 'PASS',
-        'nickname': 'NICK',
-        'username': 'USER',
-        'join_channel': 'JOIN',
-        'away': 'AWAY',
-        'list': 'LIST',
-        'pong': 'PONG',
-        'message': 'PRIVMSG',
-}
 
 class IRCConnectionProtocol(asyncio.Protocol):
 
@@ -28,9 +25,11 @@ class IRCConnectionProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
         transport.write(self._generate_message('password', self._password))
-        asyncio.wait(transport.write(self._generate_message('nickname', self._user)))
+        asyncio.wait(transport.write(
+                     self._generate_message('nickname', self._user)))
         my_intern_message = " ".join([self._user, '0 * :purple'])
-        asyncio.wait(transport.write(self._generate_message('username', my_intern_message)))
+        asyncio.wait(transport.write(
+                     self._generate_message('username', my_intern_message)))
 
     def data_received(self, data):
         message_received = data.decode()
@@ -38,7 +37,10 @@ class IRCConnectionProtocol(asyncio.Protocol):
         if message_received.count('PING'):
             self.transport.write(self._generate_message('pong', ''))
         elif message_received.count('PRIVMSG'):
-            callback_functions = [callback for channel, callback in self.channel_callbacks.items() if message_received.count(channel)]
+            callback_functions = [callback
+                                  for channel, callback
+                                  in self.channel_callbacks.items()
+                                  if message_received.count(channel)]
             for callback in callback_functions:
                 callback(data)
 
@@ -52,7 +54,9 @@ class IRCConnectionProtocol(asyncio.Protocol):
         self.channel_callbacks[channel] = on_message_received
 
     def _generate_message(self, message_type, message):
-        return " ".join([messages[message_type], message, "\n"]).encode('UTF-8')
+        return " ".join([messages[message_type],
+                         message, "\n"]).encode('UTF-8')
+
 
 class Session(object):
 
@@ -61,12 +65,11 @@ class Session(object):
         loop = asyncio.get_event_loop()
         coro = loop.create_connection(lambda: self.irc_connection, host, 6667)
         loop.run_until_complete(coro)
-        
+
     def join(self, channel, on_message_received):
         coro = self.irc_connection.join_channel(channel, on_message_received)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(coro)
-        loop.run_forever()
 
     def run_forever(self):
         loop = asyncio.get_event_loop()
@@ -75,4 +78,3 @@ class Session(object):
     def close(self):
         loop = asyncio.get_event_loop()
         loop.close()
-
